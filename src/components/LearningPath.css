@@ -1,0 +1,457 @@
+.learning-path {
+  flex: 1;
+  padding: 2rem;
+  background: var(--bg-primary);
+  min-height: calc(100vh - 80px);
+  color: var(--text-primary);
+}
+
+.path-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.path-info {
+  flex: 1;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-accent);
+  text-decoration: none;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: var(--bg-secondary);
+  transform: translateX(-2px);
+}
+
+.path-info h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.path-info p {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  max-width: 600px;
+}
+
+.path-stats {
+  display: flex;
+  gap: 2rem;
+}
+
+.stat {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  min-width: 120px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-accent);
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.path-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 3rem;
+}
+
+.lessons-path {
+  position: relative;
+  padding: 2rem 0;
+}
+
+.path-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  transform: translateX(-50%);
+}
+
+.progress-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 2px;
+  transition: height 1s ease;
+}
+
+.lesson-node {
+  position: relative;
+  margin-bottom: 3rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.lesson-node:nth-child(even) {
+  flex-direction: row-reverse;
+}
+
+.lesson-node:nth-child(even) .lesson-card {
+  margin-right: 3rem;
+  margin-left: 0;
+}
+
+.lesson-node:nth-child(odd) .lesson-card {
+  margin-left: 3rem;
+}
+
+.lesson-connector {
+  position: absolute;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-secondary);
+  border: 4px solid var(--border-color);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.lesson-node.completed .lesson-connector {
+  background: #10b981;
+  border-color: #10b981;
+}
+
+.lesson-node.current .lesson-connector {
+  background: #6366f1;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+}
+
+.lesson-node.locked .lesson-connector {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.lesson-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px var(--shadow);
+  transition: all 0.3s ease;
+  flex: 1;
+  max-width: 400px;
+}
+
+.lesson-node:hover .lesson-card {
+  box-shadow: 0 10px 25px var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.lesson-node.completed .lesson-card {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.lesson-node.current .lesson-card {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.lesson-node.locked .lesson-card {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lesson-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.status-icon {
+  font-size: 1.5rem;
+}
+
+.lesson-info h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.lesson-meta {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.difficulty,
+.duration,
+.xp {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.difficulty {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.duration {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.xp {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.start-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.start-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.path-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.current-lesson-card,
+.tips-card,
+.streak-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px var(--shadow);
+}
+
+.current-lesson-card h2,
+.tips-card h2,
+.streak-card h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+}
+
+.lesson-preview h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.lesson-preview p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.lesson-progress {
+  margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 4px;
+  transition: width 1s ease;
+}
+
+.lesson-progress span {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.continue-btn {
+  display: inline-block;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  text-decoration: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.continue-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.tips-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.tips-card li {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.tips-card li:last-child {
+  border-bottom: none;
+}
+
+.tips-card li:before {
+  content: "💡";
+  margin-right: 0.5rem;
+}
+
+.streak-info {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.streak-number {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--text-accent);
+  display: block;
+}
+
+.streak-info p {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+.streak-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+
+.day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.day.active {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+}
+
+@media (max-width: 1024px) {
+  .path-content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .path-header {
+    flex-direction: column;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+
+  .path-stats {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .learning-path {
+    padding: 1rem;
+  }
+
+  .path-info h1 {
+    font-size: 2rem;
+  }
+
+  .lesson-node {
+    flex-direction: column !important;
+    text-align: center;
+  }
+
+  .lesson-node .lesson-card {
+    margin: 1rem 0 0 0 !important;
+    max-width: 100%;
+  }
+
+  .lesson-connector {
+    position: relative;
+    left: auto;
+    transform: none;
+    margin-bottom: 1rem;
+  }
+
+  .path-line {
+    display: none;
+  }
+
+  .stat {
+    min-width: 100px;
+    padding: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+}
