@@ -62,7 +62,7 @@ interface PsychometricTestProps {
 
 const PsychometricTest: React.FC<PsychometricTestProps> = ({ user }) => {
   const nav = useNavigate();
-  const { setScore } = usePsychometric(); // optional local use
+  const { setScore } = usePsychometric(); // optional local UI use
 
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [step, setStep] = useState<number>(0);
@@ -73,7 +73,7 @@ const PsychometricTest: React.FC<PsychometricTestProps> = ({ user }) => {
 
   const completed = useMemo(() => Object.keys(answers).length === total, [answers, total]);
 
-  // Optional numeric score for any UI hints; not saved to Firestore
+  // Numeric score 0..100 for storage/analytics
   const computeScore = () => {
     const sum = Object.values(answers).reduce((a, b) => a + b, 0);
     const raw = (sum / (total * 5)) * 100;
@@ -99,28 +99,34 @@ const PsychometricTest: React.FC<PsychometricTestProps> = ({ user }) => {
       return;
     }
 
-    // Keep local score if other parts of UI use it; not persisted
+    // 1) Compute numeric score and keep locally if needed
     const s = computeScore();
     setScore(s);
 
+    // 2) Build instruction string
     const dimMeans = aggregateDimensions(answers);
     const instruction = buildInstruction(dimMeans);
 
-    // Diagnostics for quick troubleshooting
+    // Diagnostics
     console.log("UID:", user.uid);
+    console.log("score:", s);
     console.log("dimMeans:", dimMeans);
     console.log("instruction:", instruction);
 
     try {
       setSaving(true);
+      // 3) Save BOTH fields to users/{uid}
       await setDoc(
         doc(db, "users", user.uid),
-        { tutorInstruction: instruction }, // persist the instruction
+        {
+          psychometricScore: s,
+          tutorInstruction: instruction,
+        },
         { merge: true }
       );
-      console.log("Saved tutorInstruction");
+      console.log("Saved psychometricScore and tutorInstruction");
     } catch (e) {
-      console.error("Failed to save tutor instruction:", e);
+      console.error("Failed to save psychometric data:", e);
     } finally {
       setSaving(false);
     }

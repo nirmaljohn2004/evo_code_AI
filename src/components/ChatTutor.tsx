@@ -7,6 +7,10 @@ import { User as FirebaseUser } from "firebase/auth"
 import "./ChatTutor.css"
 import { useChatContext } from "../contexts/ChatContext.tsx"
 
+// Firestore read for score
+import { db } from "../firebase.js"
+import { doc, getDoc } from "firebase/firestore"
+
 interface Message {
   id: number
   role: "user" | "assistant"
@@ -25,6 +29,35 @@ interface ChatTutorProps {
 
 const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
   const { tutorInstruction, refreshInstruction } = useChatContext()
+
+  // Local psychometric score to scale token budget
+  const [score, setScore] = useState<number | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      if (!user) { setScore(null); return }
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid))
+        const data = snap.exists() ? snap.data() : null
+        const s = typeof data?.psychometricScore === "number" ? data.psychometricScore : null
+        setScore(s)
+      } catch (e) {
+        console.error("Failed to load psychometricScore:", e)
+        setScore(null)
+      }
+    }
+    load()
+  }, [user])
+
+  // Map score to token budget: 0..100 -> 120..500, ensure at least 200 if style exists
+  const computeTokenBudget = (s: number | null, hasStyle: boolean) => {
+    if (typeof s !== "number" || Number.isNaN(s)) {
+      return hasStyle ? 300 : 200
+    }
+    const clamped = Math.max(0, Math.min(100, Math.round(s)))
+    const tokens = Math.round(120 + clamped * 3.8) // 120..500
+    return hasStyle ? Math.max(tokens, 200) : tokens
+  }
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -61,12 +94,17 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
       const groqApiKey = process.env.REACT_APP_GROQ_API_KEY
       if (!groqApiKey) throw new Error("Groq API key is missing. Set REACT_APP_GROQ_API_KEY in .env")
 
-      // Build messages with system style from profile
+      // Build messages with personalized style and explicit audit line
       const systemMessages = [
         { role: "system", content: "You are an expert, friendly coding tutor." },
         ...(tutorInstruction ? [{ role: "system", content: `Tutor style: ${tutorInstruction}` }] : []),
+        { role: "system", content: "At the end of each answer, add one line starting with 'Style-check:' describing how you applied the style (steps/analogy/pace)." },
       ]
       const chatTurns = newMessages.map(({ role, content }) => ({ role, content }))
+
+      // Score-based token budget
+      const tokenBudget = computeTokenBudget(score, !!tutorInstruction)
+      console.log("Token budget:", tokenBudget, "Score:", score, "Has style:", !!tutorInstruction)
 
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -77,7 +115,9 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
         body: JSON.stringify({
           model: "openai/gpt-oss-120b",
           messages: [...systemMessages, ...chatTurns],
-          max_tokens: 150,
+          max_tokens: tokenBudget,
+          temperature: 0.4,
+          top_p: 0.9,
         }),
       })
 
@@ -87,13 +127,34 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
       }
 
       const data = await response.json()
-      const assistantResponse = data.choices?.[0]?.message?.content
+      const assistantResponse: string | undefined = data?.choices?.[0]?.message?.content
 
       if (assistantResponse) {
+        // Visible adherence badge
+        const checks: { label: string; pass: boolean }[] = []
+        const lcStyle = (tutorInstruction || "").toLowerCase()
+
+        if (lcStyle.includes("step-by-step") || lcStyle.includes("step by step")) {
+          const hasSteps = /\b(1\)|1\.|step\s*1)\b/i.test(assistantResponse) || /(^|\n)-\s+/.test(assistantResponse)
+          checks.push({ label: "steps", pass: hasSteps })
+        }
+        if (lcStyle.includes("analogy")) {
+          const hasAnalogy = /\b(like|as if|imagine)\b/i.test(assistantResponse)
+          checks.push({ label: "analogy", pass: hasAnalogy })
+        }
+        if (lcStyle.includes("checks") || lcStyle.includes("proceed slowly") || lcStyle.includes("periodic checks")) {
+          const hasCheck = /(make sense|shall we proceed|ready to continue|does this help|any questions)/i.test(assistantResponse)
+          checks.push({ label: "checks", pass: hasCheck })
+        }
+
+        const passed = checks.filter((c) => c.pass).length
+        const total = checks.length
+        const adherenceLine = total ? `Style adherence: ${passed}/${total}` : ""
+
         const aiMessage: Message = {
           id: Date.now() + 1,
           role: "assistant",
-          content: assistantResponse,
+          content: adherenceLine ? `${assistantResponse}\n\n_${adherenceLine}_` : assistantResponse,
           timestamp: new Date(),
         }
         setMessages((prev) => [...prev, aiMessage])
@@ -133,10 +194,19 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
             <p className="status">Online • Powered by Groq</p>
             <p className="style-hint">
               {tutorInstruction ? `Style: ${tutorInstruction}` : "Style not set • Take the psychometric test"}
-              <button type="button" onClick={refreshInstruction} className="style-refresh-btn" title="Reload style" style={{ marginLeft: 8, fontSize: 12 }}>
+              <button
+                type="button"
+                onClick={refreshInstruction}
+                className="style-refresh-btn"
+                title="Reload style"
+                style={{ marginLeft: 8, fontSize: 12 }}
+              >
                 Refresh
               </button>
             </p>
+            {typeof score === "number" && (
+              <p className="style-hint">Score-based token limit active</p>
+            )}
           </div>
         </div>
       </div>
