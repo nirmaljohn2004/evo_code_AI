@@ -8,6 +8,7 @@ import { db } from "../firebase.js";
 import { doc, setDoc } from "firebase/firestore";
 
 type Q = { id: string; text: string; dimension: "analysis" | "creativity" | "patience" };
+type Dim = "analysis" | "creativity" | "patience";
 
 const QUESTIONS: Q[] = [
   { id: "q1", text: "Prefer step-by-step, logical explanations.", dimension: "analysis" },
@@ -18,6 +19,42 @@ const QUESTIONS: Q[] = [
 ];
 
 const scale = ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"];
+const dims: Dim[] = ["analysis", "creativity", "patience"];
+
+// Aggregate per-dimension means from 1..5 responses
+const aggregateDimensions = (answers: Record<string, number>) => {
+  const totals: Record<Dim, number> = { analysis: 0, creativity: 0, patience: 0 };
+  const counts: Record<Dim, number> = { analysis: 0, creativity: 0, patience: 0 };
+  for (const q of QUESTIONS) {
+    const v = answers[q.id];
+    if (!v) continue;
+    totals[q.dimension] += v;
+    counts[q.dimension] += 1;
+  }
+  const means = Object.fromEntries(
+    dims.map((d) => [d, counts[d] ? totals[d] / counts[d] : 0])
+  ) as Record<Dim, number>;
+  return means;
+};
+
+// Build a short, actionable tutor instruction
+const buildInstruction = (m: Record<Dim, number>) => {
+  const parts: string[] = [];
+  if (m.analysis >= 4) parts.push("Explain step-by-step and justify key steps");
+  else if (m.analysis >= 3) parts.push("Balance intuition with steps");
+  else parts.push("Focus on outcomes over long derivations");
+
+  if (m.creativity >= 4) parts.push("Use analogies, stories, and alternative approaches");
+  else if (m.creativity >= 3) parts.push("Add one concise analogy where helpful");
+  else parts.push("Keep examples concrete, minimal analogies");
+
+  if (m.patience >= 4) parts.push("Proceed slowly with periodic checks");
+  else if (m.patience >= 3) parts.push("Keep a moderate pace and summarize sections");
+  else parts.push("Be concise and move quickly");
+
+  const s = parts.join("; ") + ".";
+  return s.length > 220 ? s.slice(0, 217) + "..." : s;
+};
 
 interface PsychometricTestProps {
   user: FirebaseUser | null;
@@ -25,7 +62,7 @@ interface PsychometricTestProps {
 
 const PsychometricTest: React.FC<PsychometricTestProps> = ({ user }) => {
   const nav = useNavigate();
-  const { setScore } = usePsychometric();
+  const { setScore } = usePsychometric(); // optional local use
 
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [step, setStep] = useState<number>(0);
@@ -36,6 +73,7 @@ const PsychometricTest: React.FC<PsychometricTestProps> = ({ user }) => {
 
   const completed = useMemo(() => Object.keys(answers).length === total, [answers, total]);
 
+  // Optional numeric score for any UI hints; not saved to Firestore
   const computeScore = () => {
     const sum = Object.values(answers).reduce((a, b) => a + b, 0);
     const raw = (sum / (total * 5)) * 100;
@@ -55,19 +93,38 @@ const PsychometricTest: React.FC<PsychometricTestProps> = ({ user }) => {
   };
 
   const submit = async () => {
-    const s = computeScore();
-    setScore(s); // optional local update for instant UI
-
-    if (user) {
-      try {
-        setSaving(true);
-        await setDoc(doc(db, "users", user.uid), { psychometricScore: s }, { merge: true });
-      } catch (e) {
-        console.error("Failed to save psychometric score:", e);
-      } finally {
-        setSaving(false);
-      }
+    if (!user) {
+      console.warn("No user in submit; returning to profile");
+      nav("/profile");
+      return;
     }
+
+    // Keep local score if other parts of UI use it; not persisted
+    const s = computeScore();
+    setScore(s);
+
+    const dimMeans = aggregateDimensions(answers);
+    const instruction = buildInstruction(dimMeans);
+
+    // Diagnostics for quick troubleshooting
+    console.log("UID:", user.uid);
+    console.log("dimMeans:", dimMeans);
+    console.log("instruction:", instruction);
+
+    try {
+      setSaving(true);
+      await setDoc(
+        doc(db, "users", user.uid),
+        { tutorInstruction: instruction }, // persist the instruction
+        { merge: true }
+      );
+      console.log("Saved tutorInstruction");
+    } catch (e) {
+      console.error("Failed to save tutor instruction:", e);
+    } finally {
+      setSaving(false);
+    }
+
     nav("/profile");
   };
 

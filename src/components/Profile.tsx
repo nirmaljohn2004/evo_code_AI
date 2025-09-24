@@ -18,6 +18,7 @@ export interface UserProfileData {
   bio?: string;
   location?: string;
   psychometricScore?: number | null;
+  tutorInstruction?: string | null; // NEW
 }
 
 interface ProfileProps {
@@ -34,6 +35,10 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editForm, setEditForm] = useState<Partial<UserProfileData>>({});
 
+  // Inline edit for instruction only
+  const [editingInstruction, setEditingInstruction] = useState<boolean>(false);
+  const [instructionDraft, setInstructionDraft] = useState<string>("");
+
   useEffect(() => {
     const fetchProfileData = async () => {
       if (!user) {
@@ -47,8 +52,10 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as UserProfileData;
           if (data.psychometricScore === undefined) data.psychometricScore = null;
+          if (data.tutorInstruction === undefined) data.tutorInstruction = null; // ensure exists
           setProfileData(data);
           setEditForm(data);
+          setInstructionDraft(data.tutorInstruction ?? "");
         } else {
           const newProfile: UserProfileData = {
             name: user.displayName || "New User",
@@ -59,10 +66,12 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
             bio: "",
             location: "",
             psychometricScore: null,
+            tutorInstruction: null, // init new field
           };
           await setDoc(userDocRef, newProfile);
           setProfileData(newProfile);
           setEditForm(newProfile);
+          setInstructionDraft("");
         }
       } catch (err) {
         console.error(err);
@@ -92,6 +101,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
             bio: "",
             location: "",
             psychometricScore: null,
+            tutorInstruction: null,
           } as UserProfileData);
         return { ...base, ...(editForm as UserProfileData) };
       });
@@ -117,6 +127,20 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
     navigate("/psychometric-test");
   };
 
+  const saveInstructionOnly = async () => {
+    if (!user) return;
+    const userDocRef = doc(db, "users", user.uid);
+    try {
+      await setDoc(userDocRef, { tutorInstruction: instructionDraft.trim() || null }, { merge: true });
+      setProfileData((prev) =>
+        prev ? { ...prev, tutorInstruction: instructionDraft.trim() || null } : prev
+      );
+      setEditingInstruction(false);
+    } catch (err) {
+      console.error("Error saving tutor instruction:", err);
+    }
+  };
+
   if (loading) return <div>Loading profile...</div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!profileData) return <div>No profile to display.</div>;
@@ -129,6 +153,8 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
     profileData.psychometricScore === null || profileData.psychometricScore === undefined
       ? "Not taken yet"
       : String(profileData.psychometricScore);
+
+  const instructionText = profileData.tutorInstruction ?? "Not set yet";
 
   return (
     <div className="profile">
@@ -197,32 +223,54 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
       <section className="psychometric-large-card">
         <header className="psychometric-large-header">
           <div className="psychometric-title">
-            <h3>Psychometric Score</h3>
-            <p className="psychometric-subtitle">
-              Use this score to tailor explanation style and difficulty in the tutor.
-            </p>
-          </div>
-          <div className="psychometric-score-display">
-            <span className="psychometric-score-number">{scoreText}</span>
+            <h3>Learning Style</h3>
+              <p className="psychometric-subtitle">
+              Personalized tutor instruction used by the AI during explanations.
+              </p>
           </div>
         </header>
 
-        <div className="psychometric-large-actions">
-          <button onClick={handleStartPsychometric} className="start-psychometric-btn">
-            Take / Retake Psychometric Test
-          </button>
 
-          {/* Optional quick-set for testing only
-          <button
-            onClick={() => handleSavePsychometric(82)}
-            className="save-psychometric-btn"
-          >
-            Set demo score 82
-          </button> */}
-        </div>
+        {/* Instruction view / inline edit */}
+        {editingInstruction ? (
+          <div style={{ display: "grid", gap: 12 }}>
+            <textarea
+              value={instructionDraft}
+              onChange={(e) => setInstructionDraft(e.target.value)}
+              placeholder="Example: Explain step-by-step; use one analogy; moderate pace with periodic checks."
+              style={{
+                width: "100%",
+                minHeight: 90,
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid var(--border-color)",
+                background: "var(--bg-primary)",
+                color: "var(--text-primary)",
+              }}
+            />
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={saveInstructionOnly} className="save-psychometric-btn">Save instruction</button>
+              <button onClick={() => { setEditingInstruction(false); setInstructionDraft(profileData.tutorInstruction ?? ""); }} className="cancel-btn">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 12 }}>
+            <div className="psychometric-instruction-box">
+              {instructionText}
+            </div>
+            <div className="psychometric-large-actions">
+              <button onClick={() => setEditingInstruction(true)} className="start-psychometric-btn">
+                Edit instruction
+              </button>
+              <button onClick={handleStartPsychometric} className="start-psychometric-btn">
+                Take / Retake Test
+              </button>
+            </div>
+          </div>
+        )}
       </section>
-
-      {/* Tabs / other content can use profileData */}
     </div>
   );
 };

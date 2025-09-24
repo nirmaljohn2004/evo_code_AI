@@ -10,8 +10,9 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import Profile from "./components/Profile.tsx";
 import PsychometricTest from "./components/PsychometricTest.tsx";
 
-// ADD: provider for psychometric context
+// Providers
 import { PsychometricProvider } from "./contexts/PsychometricContext.tsx";
+import { ChatProvider } from "./contexts/ChatContext.tsx"; // NEW: provides tutorInstruction to chat
 
 function App(): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
@@ -34,19 +35,21 @@ function App(): JSX.Element {
   return (
     <ThemeProvider>
       <PsychometricProvider>
-        <Router>
-          <Routes>
-            <Route
-              path="/profile"
-              element={isAuthenticated ? <Profile user={user} /> : <Navigate to="/" replace />}
-            />
-            <Route
-              path="/psychometric-test"
-              element={isAuthenticated ? <PsychometricTest user={user} /> : <Navigate to="/" replace />}
-            />
-            <Route path="/*" element={<AppContent user={user} isAuthenticated={isAuthenticated} />} />
-          </Routes>
-        </Router>
+        <ChatProvider>
+          <Router>
+            <Routes>
+              <Route
+                path="/profile"
+                element={isAuthenticated ? <Profile user={user} /> : <Navigate to="/" replace />}
+              />
+              <Route
+                path="/psychometric-test"
+                element={isAuthenticated ? <PsychometricTest user={user} /> : <Navigate to="/" replace />}
+              />
+              <Route path="/*" element={<AppContent user={user} isAuthenticated={isAuthenticated} />} />
+            </Routes>
+          </Router>
+        </ChatProvider>
       </PsychometricProvider>
     </ThemeProvider>
   );

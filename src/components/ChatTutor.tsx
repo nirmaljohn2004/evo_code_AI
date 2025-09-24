@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { User as FirebaseUser } from "firebase/auth"
 import "./ChatTutor.css"
+import { useChatContext } from "../contexts/ChatContext.tsx"
 
 interface Message {
   id: number
@@ -23,11 +24,13 @@ interface ChatTutorProps {
 }
 
 const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
+  const { tutorInstruction, refreshInstruction } = useChatContext()
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
       role: "assistant",
-      content: `Hello ${user?.displayName || "learner"}! 👋 I'm your AI coding tutor. How can I help you today?`,
+      content: `Hello ${user?.displayName || "learner"}! 👋 I'm your AI coding tutor. How can I help today?`,
       timestamp: new Date(),
     },
   ])
@@ -35,13 +38,8 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  useEffect(() => { scrollToBottom() }, [messages])
 
   const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -60,12 +58,15 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
     setIsTyping(true)
 
     try {
-      // ✅ Get API key from .env
       const groqApiKey = process.env.REACT_APP_GROQ_API_KEY
+      if (!groqApiKey) throw new Error("Groq API key is missing. Set REACT_APP_GROQ_API_KEY in .env")
 
-      if (!groqApiKey) {
-        throw new Error("Groq API key is missing. Set REACT_APP_GROQ_API_KEY in .env")
-      }
+      // Build messages with system style from profile
+      const systemMessages = [
+        { role: "system", content: "You are an expert, friendly coding tutor." },
+        ...(tutorInstruction ? [{ role: "system", content: `Tutor style: ${tutorInstruction}` }] : []),
+      ]
+      const chatTurns = newMessages.map(({ role, content }) => ({ role, content }))
 
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -75,7 +76,7 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
         },
         body: JSON.stringify({
           model: "openai/gpt-oss-120b",
-          messages: newMessages.map(({ role, content }) => ({ role, content })),
+          messages: [...systemMessages, ...chatTurns],
           max_tokens: 150,
         }),
       })
@@ -86,7 +87,7 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
       }
 
       const data = await response.json()
-      const assistantResponse = data.choices[0]?.message?.content
+      const assistantResponse = data.choices?.[0]?.message?.content
 
       if (assistantResponse) {
         const aiMessage: Message = {
@@ -111,9 +112,7 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
     }
   }
 
-  const handleQuickAction = (actionText: string) => {
-    setInputValue(actionText)
-  }
+  const handleQuickAction = (actionText: string) => setInputValue(actionText)
 
   const quickActions: QuickAction[] = [
     { text: "Explain what a React Hook is", icon: "🧠" },
@@ -122,9 +121,7 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
     { text: "What data structure should I use for a social media feed?", icon: "📊" },
   ]
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  }
+  const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
   return (
     <div className="chat-tutor">
@@ -134,6 +131,12 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
           <div className="tutor-details">
             <h2>AI Coding Tutor</h2>
             <p className="status">Online • Powered by Groq</p>
+            <p className="style-hint">
+              {tutorInstruction ? `Style: ${tutorInstruction}` : "Style not set • Take the psychometric test"}
+              <button type="button" onClick={refreshInstruction} className="style-refresh-btn" title="Reload style" style={{ marginLeft: 8, fontSize: 12 }}>
+                Refresh
+              </button>
+            </p>
           </div>
         </div>
       </div>
@@ -155,9 +158,7 @@ const ChatTutor: React.FC<ChatTutorProps> = ({ user }) => {
                   <span className="message-time">{formatTime(message.timestamp)}</span>
                 </div>
                 <div className="message-text">
-                  {message.content.split("\n").map((line, index) => (
-                    <p key={index}>{line}</p>
-                  ))}
+                  {message.content.split("\n").map((line, index) => (<p key={index}>{line}</p>))}
                 </div>
               </div>
             </motion.div>
