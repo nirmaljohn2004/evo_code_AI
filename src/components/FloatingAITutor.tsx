@@ -75,7 +75,7 @@ const FloatingAITutor: React.FC<FloatingAITutorProps> = ({ user, lessonContext }
           Authorization: `Bearer ${groqApiKey}`,
         },
         body: JSON.stringify({
-          model: "llama3-8b-8192",
+          model: "openai/gpt-oss-120b",
           messages: newMessages.map(({ role, content }) => ({ role, content })),
           max_tokens: 100, // Keep responses brief for the popup
         }),
